@@ -62,6 +62,8 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
 .btn:active{transform:scale(.97)}
 .btn.primary{background:linear-gradient(135deg,#f4a3c0,#ffd88a);color:#2a1030;border:0}
 .btn.primary:hover{filter:brightness(1.06)}
+.shortbox{display:flex;gap:10px;margin-top:14px}
+.shortbox input{flex:1;min-width:0}
 .note{margin:18px 0 0;font-size:13px;line-height:1.55;color:var(--muted)}
 .note b{color:var(--ink);font-weight:600}
 #toast{position:fixed;z-index:30;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;background:#fff;color:#221a4c;font:600 14px var(--sans);padding:10px 18px;border-radius:999px;transition:all .3s;pointer-events:none}
@@ -135,7 +137,7 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
   <div class="card">
     <p class="kicker">Night Garden</p>
     <h1>Grow a garden for someone</h1>
-    <p class="sub">Write your own words. They appear one line at a time while flowers bloom in the dark.</p>
+    <p class="sub">Write your own words. Your words fade in and scroll gently while flowers bloom in the dark.</p>
 
     <div class="field">
       <span class="lbl">Start from a template</span>
@@ -149,8 +151,8 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
     <div class="field"><label class="lbl" for="fOcc">Small heading above their name</label><input type="text" id="fOcc" maxlength="60" placeholder="e.g. Happy birthday" autocomplete="off"></div>
     <div class="field">
       <label class="lbl" for="fMsg">Your message</label>
-      <textarea id="fMsg" placeholder="One line per row. Each row fades in on its own."></textarea>
-      <div class="hintline"><span>Each row appears on its own, one after another.</span><span id="cnt"></span></div>
+      <textarea id="fMsg" placeholder="One line per row. Up to 100 lines."></textarea>
+      <div class="hintline"><span>Each row fades in as it scrolls into view.</span><span id="cnt"></span></div>
     </div>
     <div class="field">
       <span class="lbl">Flowers</span>
@@ -164,9 +166,15 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
     <div class="actions">
       <button type="button" class="btn primary" id="bPreview">Preview garden</button>
       <button type="button" class="btn" id="bCopy">Copy link</button>
+      <button type="button" class="btn" id="bShort">Short link</button>
       <button type="button" class="btn" id="bShare">Share</button>
       <button type="button" class="btn" id="bDownload">Download as a page</button>
     </div>
+    <div class="shortbox" id="shortBox" hidden>
+      <input type="text" id="shortUrl" readonly aria-label="Short link">
+      <button type="button" class="btn" id="bShortCopy">Copy</button>
+    </div>
+    <p class="note">"Short link" sends your link, and so your message, to <b>tinyurl.com</b> to make a short address. "Copy link" keeps everything private.</p>
     <p class="note" id="hostNote"></p>
   </div>
 </main>
@@ -421,7 +429,21 @@ seedFx(); requestAnimationFrame(frame);
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { seedFx(); if (!$('#garden').hidden && $('#intro').hidden) buildBed(state.cfg.fl); }, 150); });
 
 /* ================= params / links ================= */
-function readParams() {
+const CAN_ZIP = typeof CompressionStream === 'function' && typeof DecompressionStream === 'function';
+const b64u = {
+  enc: u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+  dec: s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+};
+async function pipe(u8, stream) { return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function readParams() {
+  const m = /^#z=([\w-]+)$/.exec(location.hash);
+  if (m && CAN_ZIP) {
+    try {
+      const [to, from, occ, lines, fl] = JSON.parse(new TextDecoder().decode(await pipe(b64u.dec(m[1]), new DecompressionStream('deflate-raw'))));
+      return { to: String(to || ''), from: String(from || ''), occ: String(occ || ''), fl: String(fl || 'r'),
+        lines: (Array.isArray(lines) ? lines : []).map(s => String(s).trim()).filter(Boolean).slice(0, MAX_LINES) };
+    } catch (_) { /* fall through to the old link format */ }
+  }
   const p = new URLSearchParams(location.search);
   if (!p.has('msg') && !p.has('to')) return null;
   return { to: p.get('to') || '', from: p.get('from') || '', occ: p.get('occ') || '',
@@ -439,7 +461,21 @@ function readForm() {
     lines: $('#fMsg').value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl };
 }
 function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2200); }
-function shareUrl(cfg) { return location.href.split(/[?#]/)[0] + '?' + toParams(cfg); }
+async function toLink(cfg) {
+  const base = location.href.split(/[?#]/)[0], legacy = base + '?' + toParams(cfg);
+  if (!CAN_ZIP) return legacy;
+  try {
+    const z = await pipe(new TextEncoder().encode(JSON.stringify([cfg.to, cfg.from, cfg.occ, cfg.lines, cfg.fl])), new CompressionStream('deflate-raw'));
+    const packed = base + '#z=' + b64u.enc(z);
+    return packed.length < legacy.length ? packed : legacy;
+  } catch (_) { return legacy; }
+}
+const linkCache = new Map();
+function linkFor(cfg) { // {p: promise, v: link once ready}; warmed while typing so Copy works instantly
+  const k = JSON.stringify(cfg);
+  if (!linkCache.has(k)) { if (linkCache.size > 20) linkCache.clear(); const e = { v: null }; e.p = toLink(cfg).then(v => (e.v = v)); linkCache.set(k, e); }
+  return linkCache.get(k);
+}
 async function copyText(t) {
   try { await navigator.clipboard.writeText(t); return true; } catch (e) {
     const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select();
@@ -468,11 +504,36 @@ function initGenerator() {
   const t0 = TEMPLATES[0]; $('#fOcc').value = t0.occ; $('#fMsg').value = t0.lines.join('\n');
   function count() { const n = $('#fMsg').value.split('\n').filter(s => s.trim()).length; $('#cnt').textContent = n + ' / ' + MAX_LINES + ' lines'; $('#cnt').style.color = n > MAX_LINES ? '#ff9db3' : ''; }
   $('#fMsg').addEventListener('input', count); count();
+  let warmT; const warm = () => { clearTimeout(warmT); warmT = setTimeout(() => linkFor(readForm()), 250); };
+  $('#gen').addEventListener('input', warm); $('#gen').addEventListener('click', warm); warm();
   $('#bPreview').onclick = () => { const c = readForm(); if (!c.lines.length) return toast('Write at least one line first'); showGarden(c, { fromGen: true, intro: false }); };
-  $('#bCopy').onclick = async () => { const c = readForm(); if (!c.lines.length) return toast('Write at least one line first'); toast((await copyText(shareUrl(c))) ? 'Link copied' : 'Could not copy'); };
+  $('#bCopy').onclick = async () => { const c = readForm(); if (!c.lines.length) return toast('Write at least one line first'); const e = linkFor(c); toast((await copyText(e.v || await e.p)) ? 'Link copied' : 'Could not copy'); };
+  const shortCache = new Map();
+  $('#bShort').onclick = async () => {
+    const c = readForm(); if (!c.lines.length) return toast('Write at least one line first');
+    if (location.protocol === 'file:') return toast('Put the page online first, then this works');
+    const btn = $('#bShort'), e = linkFor(c), long = e.v || await e.p;
+    let short = shortCache.get(long);
+    if (!short) {
+      btn.disabled = true; btn.textContent = 'Making it…';
+      try {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+        const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(long), { signal: ctl.signal }); clearTimeout(to);
+        const t = (await r.text()).trim();
+        if (r.ok && /^https:\/\/tinyurl\.com\/\w+$/.test(t)) { short = t; shortCache.set(long, short); }
+      } catch (_) { /* handled below */ }
+      btn.disabled = false; btn.textContent = 'Short link';
+    }
+    if (!short) return toast('Could not make a short link. Use Copy link instead');
+    $('#shortUrl').value = short; $('#shortBox').hidden = false;
+    toast((await copyText(short)) ? 'Short link copied' : 'Short link ready. Tap Copy');
+  };
+  $('#bShortCopy').onclick = async () => toast((await copyText($('#shortUrl').value)) ? 'Short link copied' : 'Could not copy');
+  $('#shortUrl').addEventListener('focus', e => e.target.select());
+  ['#gen', '#tplChips', '#flChips'].forEach(s => $(s).addEventListener(s === '#gen' ? 'input' : 'click', () => { $('#shortBox').hidden = true; })); // message changed: old short link no longer matches
   $('#bShare').onclick = async () => {
     const c = readForm(); if (!c.lines.length) return toast('Write at least one line first');
-    const url = shareUrl(c);
+    const e = linkFor(c), url = e.v || await e.p;
     if (navigator.share) { try { await navigator.share({ title: 'A little garden for you', url }); } catch (_) {} }
     else toast((await copyText(url)) ? 'Sharing not supported here. Link copied' : 'Could not copy');
   };
@@ -494,9 +555,11 @@ $('#bReplay').onclick = play;
 $('#openBtn').onclick = () => { $('#intro').classList.add('gone'); setTimeout(() => { $('#intro').hidden = true; }, 1200); play(); };
 
 /* ================= boot ================= */
-const params = window.__BAKED__ || readParams();
-if (params) { document.title = 'A little garden for you'; showGarden(params, { intro: true, fromGen: false }); }
-else initGenerator();
+(async () => {
+  const params = window.__BAKED__ || await readParams();
+  if (params) { document.title = 'A little garden for you'; showGarden(params, { intro: true, fromGen: false }); }
+  else initGenerator();
+})();
 })();
 </script>
 </body>
