@@ -165,8 +165,8 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
 
     <div class="actions">
       <button type="button" class="btn primary" id="bPreview">Preview garden</button>
-      <button type="button" class="btn" id="bCopy">Copy link</button>
-      <button type="button" class="btn" id="bShort">Short link</button>
+      <button type="button" class="btn" id="bShort">Copy short link</button>
+      <button type="button" class="btn" id="bCopy">Copy long link</button>
       <button type="button" class="btn" id="bShare">Share</button>
       <button type="button" class="btn" id="bDownload">Download as a page</button>
     </div>
@@ -174,7 +174,7 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
       <input type="text" id="shortUrl" readonly aria-label="Short link">
       <button type="button" class="btn" id="bShortCopy">Copy</button>
     </div>
-    <p class="note">"Short link" sends your link, and so your message, to <b>tinyurl.com</b> to make a short address. "Copy link" keeps everything private.</p>
+    <p class="note"><b>Copy short link</b> gives a tiny address like tinyurl.com/abc123, but it sends your message to <b>tinyurl.com</b> to make it. <b>Copy long link</b> is very long, but it stays private and never leaves your device.</p>
     <p class="note" id="hostNote"></p>
   </div>
 </main>
@@ -522,9 +522,9 @@ function initGenerator() {
         const t = (await r.text()).trim();
         if (r.ok && /^https:\/\/tinyurl\.com\/\w+$/.test(t)) { short = t; shortCache.set(long, short); }
       } catch (_) { /* handled below */ }
-      btn.disabled = false; btn.textContent = 'Short link';
+      btn.disabled = false; btn.textContent = 'Copy short link';
     }
-    if (!short) return toast('Could not make a short link. Use Copy link instead');
+    if (!short) return toast('Could not make a short link. Use Copy long link instead');
     $('#shortUrl').value = short; $('#shortBox').hidden = false;
     toast((await copyText(short)) ? 'Short link copied' : 'Short link ready. Tap Copy');
   };
