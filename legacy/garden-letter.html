@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05061a">
+<title>A Night Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#f5f0ff; --muted:#a9a2c8; --line:rgba(255,255,255,.14);
+  --pink:#f4a3c0; --gold:#ffd88a; --night:#05061a;
+  --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--night);color:var(--ink);font-family:var(--sans);-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+body.in-garden{overflow:hidden;height:100dvh}
+[hidden]{display:none!important}
+
+/* ---------- sky ---------- */
+.sky{position:fixed;inset:0;z-index:0;background:
+  radial-gradient(120% 60% at 50% 105%,#3a2760 0%,rgba(58,39,96,0) 60%),
+  linear-gradient(#04051a 0%,#0a0f30 45%,#171445 78%,#221a4c 100%)}
+.moon{position:fixed;z-index:1;top:max(3.5vh,18px);right:6vw;width:clamp(54px,10vw,104px);aspect-ratio:1;border-radius:50%;
+  background:
+   radial-gradient(circle at 34% 30%,rgba(0,0,0,.10) 0 9%,transparent 10%),
+   radial-gradient(circle at 62% 58%,rgba(0,0,0,.08) 0 12%,transparent 13%),
+   radial-gradient(circle at 40% 72%,rgba(0,0,0,.07) 0 7%,transparent 8%),
+   radial-gradient(circle at 38% 32%,#fffdf2,#f2ecd0 70%,#e2d9b4);
+  box-shadow:0 0 40px 10px rgba(255,246,210,.22),0 0 120px 40px rgba(180,170,255,.16);opacity:.92;pointer-events:none}
+canvas.fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+#fxBack{z-index:2}
+#fxFront{z-index:6}
+
+/* ---------- generator ---------- */
+#gen{position:relative;z-index:3;min-height:100dvh;display:flex;align-items:flex-start;justify-content:center;padding:clamp(18px,5vh,56px) 16px 48px}
+.card{width:min(680px,100%);background:rgba(16,16,48,.55);border:1px solid var(--line);border-radius:22px;padding:clamp(20px,4vw,34px);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.kicker{margin:0 0 6px;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+.card h1{margin:0 0 8px;font:500 clamp(30px,6vw,44px)/1.05 var(--serif)}
+.sub{margin:0 0 22px;color:var(--muted);font-size:15px;line-height:1.5}
+.lbl{display:block;margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.field{margin-bottom:16px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.row2{grid-template-columns:1fr;gap:0}}
+input[type=text],textarea{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;
+  font:400 16px/1.5 var(--sans);outline:none;transition:border-color .2s,background .2s}
+textarea{resize:vertical;min-height:170px;font-family:var(--serif);font-size:19px;line-height:1.5}
+input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,.09)}
+::placeholder{color:rgba(200,195,230,.45)}
+.hintline{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:12px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer;transition:all .18s}
+.chip:hover{background:rgba(255,255,255,.12)}
+.chip[aria-pressed=true]{background:linear-gradient(135deg,rgba(244,163,192,.35),rgba(255,216,138,.25));border-color:rgba(244,163,192,.7)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--ink);border-radius:999px;padding:12px 20px;font:600 14px var(--sans);cursor:pointer;transition:transform .15s,background .2s}
+.btn:hover{background:rgba(255,255,255,.14)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(135deg,#f4a3c0,#ffd88a);color:#2a1030;border:0}
+.btn.primary:hover{filter:brightness(1.06)}
+.shortbox{display:flex;gap:10px;margin-top:14px}
+.shortbox input{flex:1;min-width:0}
+.note{margin:18px 0 0;font-size:13px;line-height:1.55;color:var(--muted)}
+.note b{color:var(--ink);font-weight:600}
+#toast{position:fixed;z-index:30;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;background:#fff;color:#221a4c;font:600 14px var(--sans);padding:10px 18px;border-radius:999px;transition:all .3s;pointer-events:none}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- garden ---------- */
+#garden{position:fixed;inset:0;z-index:3;overflow:hidden;--bedh:300px}
+#msgwrap{position:absolute;z-index:4;left:50%;transform:translateX(-50%);top:max(86px,11vh);width:min(92vw,760px);text-align:center;
+  max-height:calc(100dvh - var(--bedh) - max(86px,11vh) + 30px);overflow-y:auto;scrollbar-width:none;padding:6px 4px 14px;
+  text-shadow:0 2px 22px rgba(5,6,26,.95),0 0 3px rgba(5,6,26,.7)}
+#msgwrap::-webkit-scrollbar{display:none}
+.occ{font:500 12px var(--sans);letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.to{margin:0 0 clamp(12px,2.4vh,24px);font:italic 500 clamp(34px,7vw,60px)/1.05 var(--serif);color:#ffe3ee}
+.line{font:400 clamp(19px,2.7vw,27px)/1.42 var(--serif);margin:0 0 .55em;color:var(--ink)}
+.from{margin-top:clamp(10px,2vh,20px);font:italic 500 clamp(20px,2.6vw,26px) var(--serif);color:var(--pink)}
+.rv{opacity:0;transition:opacity 1.2s ease,transform 1.2s ease}
+.rv:not(.seg){transform:translateY(14px)}
+.rv.on{opacity:1;transform:none}
+@keyframes rise{from{opacity:0;transform:translateY(14px);filter:blur(7px)}to{opacity:1;transform:none;filter:blur(0)}}
+
+#bed{position:absolute;z-index:3;left:0;right:0;bottom:0;height:var(--bedh)}
+.fl{position:absolute;bottom:0;width:var(--w);height:calc(var(--w) * 2.3);margin-left:calc(var(--w) / -2);transform-origin:50% 100%;
+  filter:drop-shadow(0 0 12px var(--glow,rgba(255,120,170,.4)))}
+.fl.back{filter:brightness(.68) saturate(.9);opacity:.9}
+.fl svg{display:block;overflow:visible;width:100%;height:100%}
+.stem{transform:scaleY(0)}
+.head{transform:scale(0) rotate(-50deg)}
+.play .stem{animation:grow 1.7s cubic-bezier(.3,.7,.3,1) both;animation-delay:var(--d)}
+.play .head{animation:bloom 1.7s cubic-bezier(.2,1.35,.4,1) both;animation-delay:calc(var(--d) + 1.25s)}
+.play .fl{animation:sway var(--sd) ease-in-out var(--sl) infinite alternate}
+@keyframes grow{to{transform:scaleY(1)}}
+@keyframes bloom{to{transform:scale(1) rotate(0)}}
+@keyframes sway{from{transform:rotate(-1.7deg)}to{transform:rotate(1.9deg)}}
+#grass{position:absolute;z-index:5;left:0;bottom:0;width:100%;height:clamp(46px,8vh,84px);pointer-events:none}
+#ground{position:absolute;z-index:5;left:0;right:0;bottom:0;height:9vh;pointer-events:none;background:linear-gradient(rgba(3,4,15,0),rgba(3,4,15,.92) 88%)}
+
+.ctrl{position:absolute;z-index:8;top:max(12px,env(safe-area-inset-top));left:12px;display:flex;gap:8px}
+.ctrl button{appearance:none;border:1px solid var(--line);background:rgba(10,10,40,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer}
+.ctrl button:hover{background:rgba(255,255,255,.16)}
+.replay{position:absolute;z-index:8;left:50%;bottom:calc(env(safe-area-inset-bottom) + 12px);transform:translateX(-50%);opacity:0;pointer-events:none}
+.mute{position:absolute;z-index:8;right:12px;bottom:calc(env(safe-area-inset-bottom) + 12px);appearance:none;border:1px solid var(--line);background:rgba(10,10,40,.5);color:var(--muted);border-radius:999px;padding:7px 14px;font:500 12px var(--sans);letter-spacing:.06em;cursor:pointer}
+.mute:hover{background:rgba(255,255,255,.16)}
+.replay button{appearance:none;border:1px solid var(--line);background:rgba(10,10,40,.5);color:var(--muted);border-radius:999px;padding:7px 14px;font:500 12px var(--sans);letter-spacing:.06em;cursor:pointer}
+.play .replay{animation:fadein 1.4s ease both;animation-delay:var(--endDelay);pointer-events:auto}
+@keyframes fadein{to{opacity:1}}
+
+/* ---------- intro ---------- */
+#intro{position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;
+  background:radial-gradient(90% 70% at 50% 60%,rgba(20,14,60,.55),rgba(5,6,26,.94));transition:opacity 1.2s ease}
+#intro.gone{opacity:0;pointer-events:none}
+.seed{width:16px;height:16px;border-radius:50%;background:#ffe3a3;box-shadow:0 0 18px 6px rgba(255,216,138,.65),0 0 60px 20px rgba(255,180,120,.3);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.35);box-shadow:0 0 28px 10px rgba(255,216,138,.75),0 0 90px 30px rgba(255,180,120,.35)}}
+#intro p{margin:0;font:italic 400 clamp(24px,5vw,34px)/1.25 var(--serif);max-width:520px}
+#intro small{font:500 12px var(--sans);letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+#openBtn{margin-top:10px}
+
+@media (prefers-reduced-motion:reduce){
+  .play .stem,.play .head{animation-duration:.01s;animation-delay:0s!important}
+  .play .fl{animation:none}
+  .rv{transition-duration:.3s!important}
+  .seed{animation:none}
+}
+</style>
+<script>window.__BAKED__ = null;/*bake*/</script>
+</head>
+<body>
+<div class="sky"></div>
+<div class="moon"></div>
+<canvas class="fx" id="fxBack"></canvas>
+
+<!-- ============ GENERATOR ============ -->
+<main id="gen">
+  <div class="card">
+    <p class="kicker">Night Garden</p>
+    <h1>Grow a garden for someone</h1>
+    <p class="sub">Write your own words. Your words fade in and scroll gently while flowers bloom in the dark.</p>
+
+    <div class="field">
+      <span class="lbl">Start from a template</span>
+      <div class="chips" id="tplChips"></div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label class="lbl" for="fTo">To</label><input type="text" id="fTo" maxlength="40" placeholder="Their name" autocomplete="off"></div>
+      <div class="field"><label class="lbl" for="fFrom">From (optional)</label><input type="text" id="fFrom" maxlength="40" placeholder="Your name" autocomplete="off"></div>
+    </div>
+    <div class="field"><label class="lbl" for="fOcc">Small heading above their name</label><input type="text" id="fOcc" maxlength="60" placeholder="e.g. Happy birthday" autocomplete="off"></div>
+    <div class="field">
+      <label class="lbl" for="fMsg">Your message</label>
+      <textarea id="fMsg" placeholder="One line per row. Up to 100 lines."></textarea>
+      <div class="hintline"><span>Each row fades in as it scrolls into view.</span><span id="cnt"></span></div>
+    </div>
+    <div class="field">
+      <span class="lbl">Flowers</span>
+      <div class="chips" id="flChips">
+        <button type="button" class="chip" data-f="r" aria-pressed="true">Roses</button>
+        <button type="button" class="chip" data-f="s" aria-pressed="false">Sunflowers</button>
+        <button type="button" class="chip" data-f="t" aria-pressed="false">Tulips</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl">Music</span>
+      <div class="chips" id="muChips"></div>
+      <div class="hintline"><span>Free music: Satie's Gymnop&eacute;dies, played on guitar by Michael Laucke (public domain). Starts when they tap Open.</span></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" id="bPreview">Preview garden</button>
+      <button type="button" class="btn" id="bShort">Copy short link</button>
+      <button type="button" class="btn" id="bCopy">Copy long link</button>
+      <button type="button" class="btn" id="bShare">Share</button>
+      <button type="button" class="btn" id="bDownload">Download as a page</button>
+    </div>
+    <div class="shortbox" id="shortBox" hidden>
+      <input type="text" id="shortUrl" readonly aria-label="Short link">
+      <button type="button" class="btn" id="bShortCopy">Copy</button>
+    </div>
+    <p class="note"><b>Copy short link</b> gives a tiny address like tinyurl.com/abc123, but it sends your message to <b>tinyurl.com</b> to make it. <b>Copy long link</b> is very long, but it stays private and never leaves your device.</p>
+    <p class="note" id="hostNote"></p>
+  </div>
+</main>
+
+<!-- ============ GARDEN ============ -->
+<section id="garden" hidden>
+  <div id="msgwrap"></div>
+  <div id="bed"></div>
+  <svg id="grass" viewBox="0 0 1000 80" preserveAspectRatio="none" aria-hidden="true"></svg>
+  <div id="ground"></div>
+  <div class="ctrl" id="ctrl" hidden><button type="button" id="bBack">&larr; Edit</button></div>
+  <div class="replay"><button type="button" id="bReplay">Replay</button></div>
+  <button type="button" class="mute" id="bMute" hidden>&#9834; Music on</button>
+  <div id="intro" hidden>
+    <div class="seed"></div>
+    <small>Someone grew this for you</small>
+    <p id="introText"></p>
+    <button type="button" class="btn primary" id="openBtn">Open</button>
+  </div>
+</section>
+<canvas class="fx" id="fxFront"></canvas>
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+const SRC = '<!doctype html>\n' + document.documentElement.outerHTML; // captured before any DOM changes
+const $ = s => document.querySelector(s);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MAX_LINES = 100;
+// pacing: first screen appears at START s (one after another, STAGGER s apart), then the text drifts down at CPS characters/sec after HOLD s
+const START = 1.2, STAGGER = 0.09, CPS = 38, HOLD = 2.5;
+
+/* ================= music (add your own: put the file in the music folder and add a line here) ================= */
+const TRACKS = [
+  { id: 'g1', name: 'Calm guitar 1', file: 'music/gymnopedie-1.m4a' },
+  { id: 'g2', name: 'Calm guitar 2', file: 'music/gymnopedie-2.m4a' }
+];
+const trackOf = id => TRACKS.find(t => t.id === id) || null;
+
+/* ================= templates (edit freely) ================= */
+const TEMPLATES = [
+  { id: 'well', name: 'Wishing you well', occ: 'With love, from a distance', lines: [
+    "I hope you find everything you're looking for.",
+    "I hope you're happy, truly.",
+    "I've made my peace, and I'm walking on lightly.",
+    "Take good care of your heart."] },
+  { id: 'bday', name: 'Happy birthday', occ: 'Happy birthday', lines: [
+    "Today is yours, and I hope it feels like it.",
+    "I hope the day is full of laughter, good food, and people who love you.",
+    "Thank you for being exactly who you are.",
+    "May this year be gentle, bright, and full of things that make you smile.",
+    "Happy birthday."] }
+];
+
+/* ================= flower art ================= */
+const ROSE_PAL = [
+  { c: ['#e0507f','#c93a6c','#b02a5c','#8f1f4b'], glow: 'rgba(255,90,140,.5)' },
+  { c: ['#ffb3cc','#f28cb0','#dd6a97','#c04f7d'], glow: 'rgba(255,160,200,.5)' },
+  { c: ['#c9a2ff','#a97ff0','#8a5fd8','#6c44b8'], glow: 'rgba(170,130,255,.5)' },
+  { c: ['#fff3f8','#f2d9e6','#e0bdd2','#c79ab7'], glow: 'rgba(255,240,250,.45)' }
+];
+const TULIP_PAL = [
+  { c: ['#ff8fa8','#ff6f91','#e04a74'], glow: 'rgba(255,120,150,.45)' },
+  { c: ['#c9a2ff','#a97ff0','#8a5fd8'], glow: 'rgba(170,130,255,.45)' },
+  { c: ['#ffb38a','#ff9466','#e87142'], glow: 'rgba(255,170,120,.45)' }
+];
+function roseHead(p) {
+  const L = [{ n: 5, r: 20, rx: 17, ry: 22, rot: 0 }, { n: 5, r: 15, rx: 14, ry: 18, rot: 36 }, { n: 4, r: 10, rx: 11, ry: 14, rot: 20 }, { n: 3, r: 5, rx: 7, ry: 9, rot: 50 }];
+  let s = '';
+  L.forEach((l, k) => { for (let i = 0; i < l.n; i++) s += `<ellipse cx="0" cy="${-l.r}" rx="${l.rx}" ry="${l.ry}" fill="${p.c[k]}" stroke="rgba(255,255,255,.2)" stroke-width=".8" transform="rotate(${l.rot + i * 360 / l.n})"/>`; });
+  return s + `<path d="M-4 -2C-4 -8 5 -8 5 -1C5 5 -6 5 -6 -3" fill="none" stroke="rgba(60,5,30,.55)" stroke-width="1.6" stroke-linecap="round"/>`;
+}
+function sunHead() {
+  let s = '';
+  for (let i = 0; i < 14; i++) s += `<ellipse cx="0" cy="-27" rx="6.5" ry="15" fill="#f6bd3a" transform="rotate(${i * 360 / 14})"/>`;
+  for (let i = 0; i < 14; i++) s += `<ellipse cx="0" cy="-25" rx="6" ry="14" fill="#ffd95e" transform="rotate(${i * 360 / 14 + 12.86})"/>`;
+  s += `<circle r="15" fill="#4e2c12"/>`;
+  for (let i = 1; i < 46; i++) { const a = i * 2.39996, r = 1.95 * Math.sqrt(i); s += `<circle cx="${(Math.cos(a) * r).toFixed(1)}" cy="${(Math.sin(a) * r).toFixed(1)}" r="1" fill="${i % 3 ? '#8a5a25' : '#2b1608'}"/>`; }
+  return s;
+}
+function tulipHead(p) {
+  return `<g transform="translate(0 16)">` +
+    `<path d="M-15 -6C-17 -28 -7 -38 0 -44C7 -38 17 -28 15 -6C9 8 -9 8 -15 -6Z" fill="${p.c[2]}"/>` +
+    `<path d="M-16 -8C-20 -26 -9 -36 -2 -42C-4 -26 -2 -10 6 2C-8 4 -14 -1 -16 -8Z" fill="${p.c[0]}"/>` +
+    `<path d="M16 -8C20 -26 9 -36 2 -42C4 -26 2 -10 -6 2C8 4 14 -1 16 -8Z" fill="${p.c[1]}"/>` +
+    `<path d="M-9 -2C-9 -20 -3 -30 0 -34C3 -30 9 -20 9 -2C4 6 -4 6 -9 -2Z" fill="${p.c[1]}" opacity=".85"/></g>`;
+}
+function flowerSVG(type, pal) {
+  const bend = rand(-8, 8), leaf = (y, flip, len) =>
+    `<path transform="scale(${flip},1)" d="M0 ${y}C${len * .5} ${y - 18} ${len * .9} ${y - 10} ${len} ${y - 32}C${len * .55} ${y - 40} ${len * .1} ${y - 30} 0 ${y}Z" fill="${flip > 0 ? '#2c7a5a' : '#38916a'}"/>`;
+  const stem = `<path d="M0 0C${-bend} -60 ${bend} -120 0 -175" fill="none" stroke="#2f8a62" stroke-width="4.5" stroke-linecap="round"/>` +
+    leaf(-52, 1, rand(38, 54)) + leaf(-92, -1, rand(34, 50)) + leaf(-128, 1, rand(26, 40));
+  const head = type === 's' ? sunHead() : type === 't' ? tulipHead(pal) : roseHead(pal);
+  return `<svg viewBox="0 0 100 230" aria-hidden="true"><g transform="translate(50 230)"><g class="stem">${stem}</g></g><g transform="translate(50 55)"><g class="head">${head}</g></g></svg>`;
+}
+
+/* ================= garden build / playback ================= */
+const state = { cfg: null, fromGen: false, petalsOn: false, timer: 0, scrollTimers: [], glide: 0, revealOn: false };
+
+function buildMessage(cfg) {
+  const wrap = $('#msgwrap'); wrap.textContent = '';
+  const mk = (cls, tag, text) => { const e = document.createElement(tag); e.className = cls + ' rv'; e.textContent = text; wrap.appendChild(e); return e; };
+  if (cfg.occ) mk('occ', 'div', cfg.occ);
+  mk('to', 'h1', cfg.to ? 'For ' + cfg.to : 'For you');
+  cfg.lines.forEach(t => {
+    if (t.length <= 160) return mk('line', 'p', t);
+    // long paragraph: it flows in sentence by sentence as it scrolls into view
+    const p = document.createElement('p'); p.className = 'line';
+    (t.match(/[^.!?…]+[.!?…]+["'”’)\]]*\s*|[^.!?…]+$/g) || [t]).forEach(s => {
+      const sp = document.createElement('span'); sp.className = 'seg rv'; sp.textContent = s; p.appendChild(sp);
+    });
+    wrap.appendChild(p);
+  });
+  if (cfg.from) mk('from', 'div', '— ' + cfg.from);
+  return wrap.querySelectorAll('.rv').length;
+}
+// fade in whatever has reached the visible part of the message box
+function reveal() {
+  if (!state.revealOn) return;
+  const w = $('#msgwrap'), limit = w.scrollTop + w.clientHeight - 6; let k = 0;
+  w.querySelectorAll('.rv:not(.on)').forEach(e => {
+    if (e.offsetTop >= limit) return;
+    e.style.transitionDelay = Math.min(k++ * STAGGER, 1.2).toFixed(2) + 's'; e.classList.add('on');
+  });
+}
+function buildBed(fl) {
+  const bed = $('#bed'); bed.textContent = '';
+  const types = [...new Set([...(fl || 'r')].filter(c => 'rst'.includes(c)))]; if (!types.length) types.push('r');
+  const vw = innerWidth, vh = innerHeight;
+  const topOff = Math.max(86, vh * .11), textH = $('#msgwrap').scrollHeight || 0;
+  const wFit = (vh - topOff - textH - 10) / (2.3 * 1.14);
+  const w = clamp(Math.min(vw / 6.5, vh * .15, 132, wFit), 44, 132);
+  $('#garden').style.setProperty('--bedh', Math.round(w * 2.3 * 1.14 + 6) + 'px');
+  const n = clamp(Math.round(vw / (w * .85)), 5, 14), mid = (n - 1) / 2;
+  const frag = document.createDocumentFragment();
+  let k = Math.floor(Math.random() * 9);
+  const add = (x, scale, back, delay) => {
+    const type = types[k++ % types.length];
+    const pal = type === 't' ? TULIP_PAL[Math.floor(Math.random() * TULIP_PAL.length)] : ROSE_PAL[Math.floor(Math.random() * ROSE_PAL.length)];
+    const d = document.createElement('div');
+    d.className = 'fl' + (back ? ' back' : '');
+    d.style.left = x + '%';
+    d.style.setProperty('--w', (w * scale).toFixed(1) + 'px');
+    d.style.setProperty('--d', delay.toFixed(2) + 's');
+    d.style.setProperty('--sd', rand(4, 7).toFixed(1) + 's');
+    d.style.setProperty('--sl', '-' + rand(0, 5).toFixed(1) + 's');
+    d.style.setProperty('--glow', type === 's' ? 'rgba(255,205,80,.5)' : pal.glow);
+    d.innerHTML = flowerSVG(type, pal);
+    frag.appendChild(d);
+  };
+  for (let j = 0; j < n - 1; j++) add((j + 1) / n * 100 + rand(-.25, .25) * 100 / n, rand(.66, .78), true, Math.abs(j + .5 - mid) * .22 + .4 + rand(0, .3));
+  for (let i = 0; i < n; i++) add((i + .5) / n * 100 + rand(-.2, .2) * 100 / n, rand(.88, 1.14), false, Math.abs(i - mid) * .24 + rand(0, .3));
+  bed.appendChild(frag);
+
+  const g = $('#grass'); let d = '';
+  for (let i = 0; i < 130; i++) {
+    const x = rand(-5, 1005), h = rand(14, 54), lean = rand(-14, 14), wd = rand(2, 5);
+    d += `M${(x - wd).toFixed(1)} 80Q${(x + lean * .3).toFixed(1)} ${(80 - h * .55).toFixed(1)} ${(x + lean).toFixed(1)} ${(80 - h).toFixed(1)}Q${(x + wd + lean * .3).toFixed(1)} ${(80 - h * .5).toFixed(1)} ${(x + wd).toFixed(1)} 80Z`;
+  }
+  g.innerHTML = `<path d="${d}" fill="#0d3a3a" opacity=".95"/>`;
+}
+function play() {
+  startMusic(state.cfg.mu);
+  const g = $('#garden'), w = $('#msgwrap');
+  clearTimeout(state.timer); state.petalsOn = false;
+  state.scrollTimers.forEach(clearTimeout); state.scrollTimers = []; const id = ++state.glide; state.revealOn = false;
+  g.classList.remove('play');
+  buildMessage(state.cfg);
+  buildBed(state.cfg.fl);
+  w.scrollTop = 0;
+  const start = RM ? 0 : START, dist = w.scrollHeight - w.clientHeight;
+  const chars = w.textContent.length || 1, pxs = Math.min(90, Math.max(12, w.scrollHeight / chars * CPS));
+  const scrolls = !RM && dist > 4;
+  g.style.setProperty('--endDelay', (start + 1.5 + (scrolls ? HOLD + dist / pxs : 1)).toFixed(1) + 's');
+  void g.offsetWidth; // restart animations
+  g.classList.add('play');
+  state.scrollTimers.push(setTimeout(() => { state.revealOn = true; reveal(); }, start * 1000));
+  if (scrolls) state.scrollTimers.push(setTimeout(() => {   // then drift down, revealing new text as it arrives
+    let pos = 0, last = performance.now();
+    requestAnimationFrame(function step(now) {
+      if (state.glide !== id) return;
+      pos = Math.min(dist, pos + Math.max(0, now - last) / 1000 * pxs); last = now;
+      w.scrollTop = pos;
+      if (pos < dist) requestAnimationFrame(step);
+    });
+  }, (start + HOLD) * 1000));
+  if (!RM) state.timer = setTimeout(() => { state.petalsOn = true; }, 4200);
+}
+function showGarden(cfg, opts) {
+  state.cfg = cfg; state.fromGen = !!opts.fromGen; music.muted = false;
+  $('#gen').hidden = true; $('#garden').hidden = false;
+  document.body.classList.add('in-garden'); window.scrollTo(0, 0);
+  $('#ctrl').hidden = !state.fromGen;
+  const intro = $('#intro');
+  if (opts.intro) {
+    $('#introText').textContent = cfg.to ? 'A little garden for ' + cfg.to : 'A little garden, just for you';
+    intro.hidden = false; intro.classList.remove('gone');
+    buildMessage(cfg); buildBed(cfg.fl);
+  } else { intro.hidden = true; play(); }
+}
+const music = { el: null, id: '', want: false, muted: false, fade: 0 };
+const MUSIC_VOL = 0.55;
+function fadeMusic(to, ms, done) {
+  const el = music.el; if (!el) return;
+  const id = ++music.fade, from = el.volume, t0 = performance.now();
+  (function step(now) {
+    if (music.fade !== id) return;
+    const k = Math.min(1, Math.max(0, now - t0) / ms);
+    try { el.volume = from + (to - from) * k; } catch (_) {}
+    if (k < 1) requestAnimationFrame(step); else if (done) done();
+  })(t0);
+}
+function muteLabel() { const b = $('#bMute'); b.textContent = music.want ? '\u266A Music on' : '\u266A Music off'; }
+function stopMusic(hard) {
+  music.want = false; const el = music.el; if (!el) return;
+  if (hard) { music.fade++; el.pause(); music.el = null; music.id = ''; } else fadeMusic(0, 800, () => el.pause());
+}
+function startMusic(id) { // must run inside a tap/click, or the browser blocks the sound
+  const t = trackOf(id), btn = $('#bMute');
+  if (!t) { stopMusic(true); btn.hidden = true; return; }
+  btn.hidden = false;
+  if (music.muted) { muteLabel(); return; }
+  if (!music.el || music.id !== id) { stopMusic(true); music.el = new Audio(t.file); music.el.loop = true; music.el.volume = 0; music.id = id; }
+  music.want = true; muteLabel();
+  const pr = music.el.play();
+  if (pr && pr.then) pr.then(() => fadeMusic(MUSIC_VOL, 3000)).catch(() => { music.want = false; muteLabel(); }); // blocked or file missing: the button lets them try again
+}
+function backToEditor() {
+  stopMusic(false); $('#bMute').hidden = true;
+  clearTimeout(state.timer); state.petalsOn = false;
+  $('#garden').classList.remove('play'); $('#garden').hidden = true; $('#gen').hidden = false;
+  document.body.classList.remove('in-garden');
+}
+
+/* ================= particles (stars, fireflies, petals) ================= */
+const back = { cv: $('#fxBack') }, front = { cv: $('#fxFront') };
+back.ctx = back.cv.getContext('2d'); front.ctx = front.cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, T = 0, last = 0, stars = [], flies = [], petals = [], shoot = null, nextShoot = rand(5, 10);
+function seedFx() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight;
+  for (const L of [back, front]) { L.cv.width = W * DPR; L.cv.height = H * DPR; L.ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+  stars = Array.from({ length: clamp(Math.round(W * H / 7500), 60, 220) }, () => ({ x: rand(0, W), y: rand(0, H * .8), r: rand(.4, 1.5), p: rand(0, 6.28), s: rand(.6, 2), b: rand(.5, 1) }));
+  flies = Array.from({ length: RM ? 0 : clamp(Math.round(W / 50), 10, 26) }, () => ({ x: rand(0, W), y: rand(H * .4, H * .95), a: rand(0, 6.28), sp: rand(10, 26), ph: rand(0, 6.28), r: rand(9, 16) }));
+}
+function frame(now) {
+  const dt = Math.min(.05, ((now - last) / 1000) || .016); last = now; T += dt;
+  const b = back.ctx, f = front.ctx;
+  b.clearRect(0, 0, W, H); f.clearRect(0, 0, W, H);
+  b.fillStyle = '#e4eaff';
+  for (const s of stars) {
+    b.globalAlpha = (RM ? .6 : .3 + .7 * (.5 + .5 * Math.sin(T * s.s + s.p))) * s.b;
+    b.beginPath(); b.arc(s.x, s.y, s.r, 0, 6.283); b.fill();
+  }
+  b.globalAlpha = 1;
+  if (!RM) {
+    nextShoot -= dt;
+    if (nextShoot <= 0 && !shoot) { shoot = { x: rand(W * .1, W * .8), y: rand(0, H * .3), vx: rand(380, 520), vy: rand(150, 240), life: 0 }; nextShoot = rand(7, 15); }
+    if (shoot) {
+      shoot.life += dt; shoot.x += shoot.vx * dt; shoot.y += shoot.vy * dt;
+      const a = Math.max(0, 1 - shoot.life / .9), len = .09;
+      const gr = b.createLinearGradient(shoot.x, shoot.y, shoot.x - shoot.vx * len, shoot.y - shoot.vy * len);
+      gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      b.strokeStyle = gr; b.lineWidth = 1.6; b.beginPath(); b.moveTo(shoot.x, shoot.y); b.lineTo(shoot.x - shoot.vx * len, shoot.y - shoot.vy * len); b.stroke();
+      if (shoot.life > .9) shoot = null;
+    }
+    for (const q of flies) {
+      q.a += (Math.random() - .5) * 2.2 * dt; q.x += Math.cos(q.a) * q.sp * dt; q.y += Math.sin(q.a) * q.sp * .6 * dt;
+      if (q.x < -20) q.x = W + 20; if (q.x > W + 20) q.x = -20; if (q.y < H * .3) q.a = Math.abs(q.a); if (q.y > H) q.y = H * .5;
+      const glow = Math.pow(.5 + .5 * Math.sin(T * 1.5 + q.ph), 2), R = q.r;
+      const gr = b.createRadialGradient(q.x, q.y, 0, q.x, q.y, R);
+      gr.addColorStop(0, `rgba(255,236,150,${.15 + .85 * glow})`); gr.addColorStop(.25, `rgba(255,216,110,${.35 * glow})`); gr.addColorStop(1, 'rgba(255,200,90,0)');
+      b.fillStyle = gr; b.beginPath(); b.arc(q.x, q.y, R, 0, 6.283); b.fill();
+    }
+    if (state.petalsOn && petals.length < 26 && Math.random() < dt * 1.6) petals.push({ x: rand(0, W), y: -20, vy: rand(24, 46), sw: rand(.6, 1.6), ph: rand(0, 6.28), rot: rand(0, 6.28), vr: rand(-1.2, 1.2), sz: rand(5, 9), h: Math.random() < .8 });
+    for (let i = petals.length - 1; i >= 0; i--) {
+      const p = petals[i]; p.y += p.vy * dt; p.x += Math.sin(T * p.sw + p.ph) * 26 * dt; p.rot += p.vr * dt;
+      if (p.y > H + 20) { petals.splice(i, 1); continue; }
+      f.save(); f.translate(p.x, p.y); f.rotate(p.rot); f.scale(1, .6 + .4 * Math.abs(Math.sin(T + p.ph)));
+      f.fillStyle = p.h ? 'rgba(248,160,192,.85)' : 'rgba(210,180,255,.8)';
+      f.beginPath(); f.ellipse(0, 0, p.sz * .55, p.sz, 0, 0, 6.283); f.fill(); f.restore();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+seedFx(); requestAnimationFrame(frame);
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { seedFx(); if (!$('#garden').hidden && $('#intro').hidden) buildBed(state.cfg.fl); }, 150); });
+
+/* ================= params / links ================= */
+const CAN_ZIP = typeof CompressionStream === 'function' && typeof DecompressionStream === 'function';
+const b64u = {
+  enc: u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+  dec: s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+};
+async function pipe(u8, stream) { return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function readParams() {
+  const m = /^#z=([\w-]+)$/.exec(location.hash);
+  if (m && CAN_ZIP) {
+    try {
+      const [to, from, occ, lines, fl, mu] = JSON.parse(new TextDecoder().decode(await pipe(b64u.dec(m[1]), new DecompressionStream('deflate-raw'))));
+      return { to: String(to || ''), from: String(from || ''), occ: String(occ || ''), fl: String(fl || 'r'), mu: (trackOf(mu) || {}).id || '',
+        lines: (Array.isArray(lines) ? lines : []).map(s => String(s).trim()).filter(Boolean).slice(0, MAX_LINES) };
+    } catch (_) { /* fall through to the old link format */ }
+  }
+  const p = new URLSearchParams(location.search);
+  if (!p.has('msg') && !p.has('to')) return null;
+  return { to: p.get('to') || '', from: p.get('from') || '', occ: p.get('occ') || '',
+    lines: (p.get('msg') || '').split(/\||\n/).map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl: p.get('fl') || 'r', mu: (trackOf(p.get('mu')) || {}).id || '' };
+}
+function toParams(cfg) {
+  const p = new URLSearchParams();
+  if (cfg.to) p.set('to', cfg.to); if (cfg.from) p.set('from', cfg.from); if (cfg.occ) p.set('occ', cfg.occ);
+  p.set('msg', cfg.lines.join('|')); p.set('fl', cfg.fl); if (cfg.mu) p.set('mu', cfg.mu);
+  return p.toString();
+}
+function readForm() {
+  const fl = [...document.querySelectorAll('#flChips .chip[aria-pressed=true]')].map(b => b.dataset.f).join('') || 'r';
+  return { to: $('#fTo').value.trim(), from: $('#fFrom').value.trim(), occ: $('#fOcc').value.trim(),
+    lines: $('#fMsg').value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl,
+    mu: (document.querySelector('#muChips .chip[aria-pressed=true]') || {dataset: {}}).dataset.m || '' };
+}
+function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2200); }
+async function toLink(cfg) {
+  const base = location.href.split(/[?#]/)[0], legacy = base + '?' + toParams(cfg);
+  if (!CAN_ZIP) return legacy;
+  try {
+    const z = await pipe(new TextEncoder().encode(JSON.stringify([cfg.to, cfg.from, cfg.occ, cfg.lines, cfg.fl, cfg.mu])), new CompressionStream('deflate-raw'));
+    const packed = base + '#z=' + b64u.enc(z);
+    return packed.length < legacy.length ? packed : legacy;
+  } catch (_) { return legacy; }
+}
+const linkCache = new Map();
+function linkFor(cfg) { // {p: promise, v: link once ready}; warmed while typing so Copy works instantly
+  const k = JSON.stringify(cfg);
+  if (!linkCache.has(k)) { if (linkCache.size > 20) linkCache.clear(); const e = { v: null }; e.p = toLink(cfg).then(v => (e.v = v)); linkCache.set(k, e); }
+  return linkCache.get(k);
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {
+    const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} a.remove(); return ok;
+  }
+}
+function bakedSource(cfg) {
+  const json = JSON.stringify(cfg).replace(/</g, '\\u003c');
+  return SRC.replace('window.__BAKED__ = null;/*bake*/', () => 'window.__BAKED__ = ' + json + ';/*bake*/');
+}
+
+/* ================= generator wiring ================= */
+function initGenerator() {
+  const chips = $('#tplChips');
+  TEMPLATES.forEach(t => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t.name;
+    b.onclick = () => { $('#fOcc').value = t.occ; $('#fMsg').value = t.lines.join('\n'); count(); toast('Template loaded. Now make it yours.'); };
+    chips.appendChild(b);
+  });
+  const mu = $('#muChips');
+  [{ id: '', name: 'No music' }, ...TRACKS].forEach((t, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t.name; b.dataset.m = t.id;
+    b.setAttribute('aria-pressed', String(i === (TRACKS.length ? 1 : 0)));
+    b.onclick = () => mu.querySelectorAll('.chip').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    mu.appendChild(b);
+  });
+  document.querySelectorAll('#flChips .chip').forEach(b => b.onclick = () => {
+    const on = b.getAttribute('aria-pressed') === 'true';
+    const anyOther = [...document.querySelectorAll('#flChips .chip')].some(o => o !== b && o.getAttribute('aria-pressed') === 'true');
+    if (on && !anyOther) return; // keep at least one
+    b.setAttribute('aria-pressed', on ? 'false' : 'true');
+  });
+  const t0 = TEMPLATES[0]; $('#fOcc').value = t0.occ; $('#fMsg').value = t0.lines.join('\n');
+  function count() { const n = $('#fMsg').value.split('\n').filter(s => s.trim()).length; $('#cnt').textContent = n + ' / ' + MAX_LINES + ' lines'; $('#cnt').style.color = n > MAX_LINES ? '#ff9db3' : ''; }
+  $('#fMsg').addEventListener('input', count); count();
+  let warmT; const warm = () => { clearTimeout(warmT); warmT = setTimeout(() => linkFor(readForm()), 250); };
+  $('#gen').addEventListener('input', warm); $('#gen').addEventListener('click', warm); warm();
+  $('#bPreview').onclick = () => { const c = readForm(); if (!c.lines.length) return toast('Write at least one line first'); showGarden(c, { fromGen: true, intro: false }); };
+  $('#bCopy').onclick = async () => { const c = readForm(); if (!c.lines.length) return toast('Write at least one line first'); const e = linkFor(c); toast((await copyText(e.v || await e.p)) ? 'Link copied' : 'Could not copy'); };
+  const shortCache = new Map();
+  $('#bShort').onclick = async () => {
+    const c = readForm(); if (!c.lines.length) return toast('Write at least one line first');
+    if (location.protocol === 'file:') return toast('Put the page online first, then this works');
+    const btn = $('#bShort'), e = linkFor(c), long = e.v || await e.p;
+    let short = shortCache.get(long);
+    if (!short) {
+      btn.disabled = true; btn.textContent = 'Making it…';
+      try {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+        const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(long), { signal: ctl.signal }); clearTimeout(to);
+        const t = (await r.text()).trim();
+        if (r.ok && /^https:\/\/tinyurl\.com\/\w+$/.test(t)) { short = t; shortCache.set(long, short); }
+      } catch (_) { /* handled below */ }
+      btn.disabled = false; btn.textContent = 'Copy short link';
+    }
+    if (!short) return toast('Could not make a short link. Use Copy long link instead');
+    $('#shortUrl').value = short; $('#shortBox').hidden = false;
+    toast((await copyText(short)) ? 'Short link copied' : 'Short link ready. Tap Copy');
+  };
+  $('#bShortCopy').onclick = async () => toast((await copyText($('#shortUrl').value)) ? 'Short link copied' : 'Could not copy');
+  $('#shortUrl').addEventListener('focus', e => e.target.select());
+  ['#gen', '#tplChips', '#flChips', '#muChips'].forEach(s => $(s).addEventListener(s === '#gen' ? 'input' : 'click', () => { $('#shortBox').hidden = true; })); // message changed: old short link no longer matches
+  $('#bShare').onclick = async () => {
+    const c = readForm(); if (!c.lines.length) return toast('Write at least one line first');
+    const e = linkFor(c), url = e.v || await e.p;
+    if (navigator.share) { try { await navigator.share({ title: 'A little garden for you', url }); } catch (_) {} }
+    else toast((await copyText(url)) ? 'Sharing not supported here. Link copied' : 'Could not copy');
+  };
+  $('#bDownload').onclick = () => {
+    const c = readForm(); if (!c.lines.length) return toast('Write at least one line first');
+    const blob = new Blob([bakedSource(c)], { type: 'text/html' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'garden-' + (c.to || 'for-you').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.html';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Downloaded. Upload that file anywhere to share it.');
+  };
+  $('#hostNote').innerHTML = location.protocol === 'file:'
+    ? '<b>Sharing:</b> "Copy link" only works once this page is hosted online. Easiest route: press <b>Download as a page</b>, then drag that file onto <b>app.netlify.com/drop</b> to get a link you can send.'
+    : '<b>Tip:</b> Both link buttons pack your words into the address, so anyone with the link sees your garden.';
+}
+['wheel', 'touchstart'].forEach(ev => $('#msgwrap').addEventListener(ev, () => { state.glide++; }, { passive: true })); // viewer scrolls by hand: stop the auto-scroll
+$('#msgwrap').addEventListener('scroll', reveal, { passive: true });
+$('#bBack').onclick = backToEditor;
+$('#bReplay').onclick = play;
+$('#bMute').onclick = () => { if (music.want) { music.muted = true; stopMusic(false); muteLabel(); } else { music.muted = false; startMusic(state.cfg.mu); } };
+$('#openBtn').onclick = () => { $('#intro').classList.add('gone'); setTimeout(() => { $('#intro').hidden = true; }, 1200); play(); };
+
+/* ================= boot ================= */
+(async () => {
+  const params = window.__BAKED__ || await readParams();
+  if (params) { document.title = 'A little garden for you'; showGarden(params, { intro: true, fromGen: false }); }
+  else initGenerator();
+})();
+})();
+</script>
+</body>
+</html>
