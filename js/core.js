@@ -94,6 +94,7 @@
   u.loadScript = src => loading[src] || (loading[src] = new Promise((res, rej) => {
     const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src)); document.head.append(s);
   }));
-  KS.loadTemplate = async id => { if (!KS.templates[id]) await u.loadScript('templates/' + id + '.js'); if (!KS.templates[id]) throw new Error('Unknown template'); return KS.templates[id]; };
+  /* a file can register a family of templates: 'wedding-hindu' lives in templates/wedding.js */
+  KS.loadTemplate = async id => { if (!KS.templates[id]) await u.loadScript('templates/' + String(id).split('-')[0] + '.js'); if (!KS.templates[id]) throw new Error('Unknown template'); return KS.templates[id]; };
   u.font = href => { if (document.querySelector('link[data-ks-font="' + href + '"]')) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.dataset.ksFont = href; document.head.append(l); };
 })();

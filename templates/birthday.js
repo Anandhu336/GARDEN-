@@ -152,7 +152,7 @@
     <path d="M100 56c-24-34-52-14-34 0 10 8 34 0 34 0zM100 56c24-34 52-14 34 0-10 8-34 0-34 0z" fill="${cols[1]}" stroke="#0002" stroke-width="2"/></g></svg>`;
 
   KS.registerTemplate({
-    id: 'birthday',
+    id: 'birthday', group: 'Letters and birthdays',
     name: 'Birthday party',
     tagline: 'A gift to open, balloons, confetti, a cake to blow out and a wall of wishes.',
     for: 'Birthdays, milestones, party invitations',

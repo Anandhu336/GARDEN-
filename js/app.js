@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const KS = window.KS, u = KS.util, el = u.el, $ = u.$, B = KS.backend;
-  const IDS = ['garden', 'birthday', 'wedding'];
+  const IDS = ['garden', 'birthday', 'wedding', 'wedding-hindu', 'wedding-muslim', 'wedding-christian', 'wedding-modern'];
   const stage = () => $('#stage'), app = () => $('#app');
   let current = null; // the template currently on screen
 
@@ -63,10 +63,13 @@
     if (teardown) { teardown(); teardown = null; }
     unmount(); document.title = 'Keepsake: beautiful pages for the people you love'; document.body.className = 'is-app'; window.scrollTo(0, 0);
     const mine = B.myPages();
-    const cards = IDS.map(id => { const T = KS.templates[id];
+    const card = id => { const T = KS.templates[id];
       return el('button', { class: 'tcard', type: 'button', onclick: () => { location.hash = '#/new/' + id; } },
         el('div', { class: 'thumb', html: T.thumb || '' }),
-        el('div', { class: 'tinfo' }, el('h3', {}, T.name), el('p', {}, T.tagline), el('small', {}, T.for || ''), el('span', { class: 'go' }, 'Start with this →'))); });
+        el('div', { class: 'tinfo' }, el('h3', {}, T.name), el('p', {}, T.tagline), el('small', {}, T.for || ''), el('span', { class: 'go' }, 'Start with this →'))); };
+    const groups = []; // templates can name a group; the home screen shows one heading and one grid per group
+    IDS.forEach(id => { const g = KS.templates[id].group || ''; let x = groups.find(y => y.g === g); if (!x) groups.push(x = { g, ids: [] }); x.ids.push(id); });
+    const sections = groups.map(x => el('section', { class: 'grp' }, x.g ? el('h2', {}, x.g) : null, el('div', { class: 'cards' }, x.ids.map(card))));
     app().textContent = '';
     app().append(el('div', { class: 'wrap' },
       el('div', { class: 'top' }, brand()),
@@ -74,7 +77,7 @@
         el('h1', { html: 'Make something <em>worth keeping</em>.' }),
         el('p', {}, 'Pick a style, add your words, photos, places, dates and a song. Publish it, and send the link to someone you love.'),
         B.configured() ? null : el('div', { class: 'notice', html: '<b>Publishing is not switched on yet.</b> You can design and preview everything now. To share pages, connect a free Supabase project: open <code>SETUP.md</code> in this folder and follow the steps.' })),
-      el('section', { class: 'cards' }, cards),
+      sections,
       el('section', { class: 'feat' },
         el('div', {}, el('b', {}, 'Your words'), 'Letters, wishes, schedules, all editable.'),
         el('div', {}, el('b', {}, 'Photos and places'), 'Add pictures and a map link for the venue.'),
@@ -108,6 +111,8 @@
       try { const dr = JSON.parse(localStorage.getItem(draftKey) || 'null'); if (dr && dr.d) { data = Object.assign(u.clone(T.sample), dr.d); music = Object.assign(blankMusic(), dr.m || {}); restored = true; } } catch (_) {}
       if (!data) { data = u.clone(T.sample); music = blankMusic(); }
     }
+
+    if (T.migrate) T.migrate(data); // lets a template upgrade fields saved by an older version
 
     /* preview iframe */
     let ready = false, live = false, timer = 0, saveT = 0;

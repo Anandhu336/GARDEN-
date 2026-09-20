@@ -35,7 +35,7 @@ canvas.fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
 .line{font:400 clamp(19px,2.7vw,27px)/1.42 var(--serif);margin:0 0 .55em;color:var(--ink)}
 .from{margin-top:clamp(10px,2vh,20px);font:italic 500 clamp(20px,2.6vw,26px) var(--serif);color:var(--pink)}
 .rv{opacity:0;transition:opacity 1.2s ease,transform 1.2s ease}
-.rv:not(.seg){transform:translateY(14px)}
+.rv:not(.gseg){transform:translateY(14px)}
 .rv.on{opacity:1;transform:none}
 @keyframes rise{from{opacity:0;transform:translateY(14px);filter:blur(7px)}to{opacity:1;transform:none;filter:blur(0)}}
 
@@ -85,7 +85,7 @@ canvas.fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
   const START = 1.2, STAGGER = 0.09, CPS = 38, HOLD = 2.5;
 
   KS.registerTemplate({
-    id: 'garden',
+    id: 'garden', group: 'Letters and birthdays',
     name: 'Night garden letter',
     tagline: 'A quiet letter that fades in under the stars while flowers bloom.',
     for: 'Apologies, thank-yous, love letters, goodbyes',
@@ -214,7 +214,7 @@ canvas.fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
         lines.forEach(t => {
           if (t.length <= 160) return mk('line', 'p', t);
           const p = document.createElement('p'); p.className = 'line';
-          (t.match(/[^.!?…]+[.!?…]+["'”’)\]]*\s*|[^.!?…]+$/g) || [t]).forEach(s => { const sp = document.createElement('span'); sp.className = 'seg rv'; sp.textContent = s; p.appendChild(sp); });
+          (t.match(/[^.!?…]+[.!?…]+["'”’)\]]*\s*|[^.!?…]+$/g) || [t]).forEach(s => { const sp = document.createElement('span'); sp.className = 'gseg rv'; sp.textContent = s; p.appendChild(sp); });
           wrap.appendChild(p);
         });
         if (cfg.from) mk('from', 'div', '— ' + cfg.from);

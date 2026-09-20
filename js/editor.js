@@ -1,5 +1,6 @@
 /* Keepsake editor: turns a template's `schema` into a form. Every field type a template can use lives here.
-   Field types: text, textarea, date, time, choice, color, toggle, image, place, repeater. */
+   Field types: text, textarea, date, time, choice, color, toggle, image, place, repeater, reset.
+   choice: `resets: [keys]` clears those keys when picked.  color: `default` may be a function(data).  reset: button that clears `keys`. */
 (function () {
   'use strict';
   const KS = window.KS, u = KS.util, el = u.el;
@@ -37,14 +38,17 @@
         case 'choice': {
           const wrap = el('div', { class: 'chips', role: 'radiogroup' });
           const draw = () => { wrap.textContent = ''; f.options.forEach(o => wrap.append(el('button', { type: 'button', class: 'chip', role: 'radio', 'aria-checked': String((obj[key] == null ? f.options[0].v : obj[key]) === o.v),
-            onclick: () => { obj[key] = o.v; draw(); changed(); } }, o.c ? el('i', { class: 'dot', style: 'background:' + o.c }) : null, o.l))); };
+            onclick: () => { obj[key] = o.v; (f.resets || []).forEach(k => { delete obj[k]; }); draw(); changed(); } }, o.c ? el('i', { class: 'dot', style: 'background:' + o.c }) : null, o.l))); };
           draw(); return fieldBlock(f, wrap);
         }
         case 'color': {
-          const i = el('input', { type: 'color', id: f._id, value: obj[key] || f.default || '#c9a45c' });
+          const dyn = typeof f.default === 'function', dflt = () => (dyn ? f.default(data) : f.default) || '#c9a45c';
+          const i = el('input', { type: 'color', id: f._id, value: obj[key] || dflt() });
           i.addEventListener('input', () => { obj[key] = i.value; changed(); });
+          if (dyn) showers.push(() => { if (!obj[key]) i.value = dflt(); }); // an untouched picker follows the palette
           return fieldBlock(f, i);
         }
+        case 'reset': return el('div', { class: 'field' }, el('button', { type: 'button', class: 'btn ghost', onclick: () => { f.keys.forEach(k => { delete obj[k]; }); changed(); } }, f.label));
         case 'toggle': {
           const c = el('input', { type: 'checkbox', id: f._id }); c.checked = !!obj[key];
           c.addEventListener('change', () => { obj[key] = c.checked; changed(); });
