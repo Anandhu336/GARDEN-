@@ -104,6 +104,8 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
 .ctrl button{appearance:none;border:1px solid var(--line);background:rgba(10,10,40,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer}
 .ctrl button:hover{background:rgba(255,255,255,.16)}
 .replay{position:absolute;z-index:8;left:50%;bottom:calc(env(safe-area-inset-bottom) + 12px);transform:translateX(-50%);opacity:0;pointer-events:none}
+.mute{position:absolute;z-index:8;right:12px;bottom:calc(env(safe-area-inset-bottom) + 12px);appearance:none;border:1px solid var(--line);background:rgba(10,10,40,.5);color:var(--muted);border-radius:999px;padding:7px 14px;font:500 12px var(--sans);letter-spacing:.06em;cursor:pointer}
+.mute:hover{background:rgba(255,255,255,.16)}
 .replay button{appearance:none;border:1px solid var(--line);background:rgba(10,10,40,.5);color:var(--muted);border-radius:999px;padding:7px 14px;font:500 12px var(--sans);letter-spacing:.06em;cursor:pointer}
 .play .replay{animation:fadein 1.4s ease both;animation-delay:var(--endDelay);pointer-events:auto}
 @keyframes fadein{to{opacity:1}}
@@ -162,6 +164,11 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
         <button type="button" class="chip" data-f="t" aria-pressed="false">Tulips</button>
       </div>
     </div>
+    <div class="field">
+      <span class="lbl">Music</span>
+      <div class="chips" id="muChips"></div>
+      <div class="hintline"><span>Free music: Satie's Gymnop&eacute;dies, played on guitar by Michael Laucke (public domain). Starts when they tap Open.</span></div>
+    </div>
 
     <div class="actions">
       <button type="button" class="btn primary" id="bPreview">Preview garden</button>
@@ -187,6 +194,7 @@ input:focus,textarea:focus{border-color:var(--pink);background:rgba(255,255,255,
   <div id="ground"></div>
   <div class="ctrl" id="ctrl" hidden><button type="button" id="bBack">&larr; Edit</button></div>
   <div class="replay"><button type="button" id="bReplay">Replay</button></div>
+  <button type="button" class="mute" id="bMute" hidden>&#9834; Music on</button>
   <div id="intro" hidden>
     <div class="seed"></div>
     <small>Someone grew this for you</small>
@@ -208,6 +216,13 @@ const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').m
 const MAX_LINES = 100;
 // pacing: first screen appears at START s (one after another, STAGGER s apart), then the text drifts down at CPS characters/sec after HOLD s
 const START = 1.2, STAGGER = 0.09, CPS = 38, HOLD = 2.5;
+
+/* ================= music (add your own: put the file in the music folder and add a line here) ================= */
+const TRACKS = [
+  { id: 'g1', name: 'Calm guitar 1', file: 'music/gymnopedie-1.m4a' },
+  { id: 'g2', name: 'Calm guitar 2', file: 'music/gymnopedie-2.m4a' }
+];
+const trackOf = id => TRACKS.find(t => t.id === id) || null;
 
 /* ================= templates (edit freely) ================= */
 const TEMPLATES = [
@@ -332,6 +347,7 @@ function buildBed(fl) {
   g.innerHTML = `<path d="${d}" fill="#0d3a3a" opacity=".95"/>`;
 }
 function play() {
+  startMusic(state.cfg.mu);
   const g = $('#garden'), w = $('#msgwrap');
   clearTimeout(state.timer); state.petalsOn = false;
   state.scrollTimers.forEach(clearTimeout); state.scrollTimers = []; const id = ++state.glide; state.revealOn = false;
@@ -358,7 +374,7 @@ function play() {
   if (!RM) state.timer = setTimeout(() => { state.petalsOn = true; }, 4200);
 }
 function showGarden(cfg, opts) {
-  state.cfg = cfg; state.fromGen = !!opts.fromGen;
+  state.cfg = cfg; state.fromGen = !!opts.fromGen; music.muted = false;
   $('#gen').hidden = true; $('#garden').hidden = false;
   document.body.classList.add('in-garden'); window.scrollTo(0, 0);
   $('#ctrl').hidden = !state.fromGen;
@@ -369,7 +385,35 @@ function showGarden(cfg, opts) {
     buildMessage(cfg); buildBed(cfg.fl);
   } else { intro.hidden = true; play(); }
 }
+const music = { el: null, id: '', want: false, muted: false, fade: 0 };
+const MUSIC_VOL = 0.55;
+function fadeMusic(to, ms, done) {
+  const el = music.el; if (!el) return;
+  const id = ++music.fade, from = el.volume, t0 = performance.now();
+  (function step(now) {
+    if (music.fade !== id) return;
+    const k = Math.min(1, Math.max(0, now - t0) / ms);
+    try { el.volume = from + (to - from) * k; } catch (_) {}
+    if (k < 1) requestAnimationFrame(step); else if (done) done();
+  })(t0);
+}
+function muteLabel() { const b = $('#bMute'); b.textContent = music.want ? '\u266A Music on' : '\u266A Music off'; }
+function stopMusic(hard) {
+  music.want = false; const el = music.el; if (!el) return;
+  if (hard) { music.fade++; el.pause(); music.el = null; music.id = ''; } else fadeMusic(0, 800, () => el.pause());
+}
+function startMusic(id) { // must run inside a tap/click, or the browser blocks the sound
+  const t = trackOf(id), btn = $('#bMute');
+  if (!t) { stopMusic(true); btn.hidden = true; return; }
+  btn.hidden = false;
+  if (music.muted) { muteLabel(); return; }
+  if (!music.el || music.id !== id) { stopMusic(true); music.el = new Audio(t.file); music.el.loop = true; music.el.volume = 0; music.id = id; }
+  music.want = true; muteLabel();
+  const pr = music.el.play();
+  if (pr && pr.then) pr.then(() => fadeMusic(MUSIC_VOL, 3000)).catch(() => { music.want = false; muteLabel(); }); // blocked or file missing: the button lets them try again
+}
 function backToEditor() {
+  stopMusic(false); $('#bMute').hidden = true;
   clearTimeout(state.timer); state.petalsOn = false;
   $('#garden').classList.remove('play'); $('#garden').hidden = true; $('#gen').hidden = false;
   document.body.classList.remove('in-garden');
@@ -439,33 +483,34 @@ async function readParams() {
   const m = /^#z=([\w-]+)$/.exec(location.hash);
   if (m && CAN_ZIP) {
     try {
-      const [to, from, occ, lines, fl] = JSON.parse(new TextDecoder().decode(await pipe(b64u.dec(m[1]), new DecompressionStream('deflate-raw'))));
-      return { to: String(to || ''), from: String(from || ''), occ: String(occ || ''), fl: String(fl || 'r'),
+      const [to, from, occ, lines, fl, mu] = JSON.parse(new TextDecoder().decode(await pipe(b64u.dec(m[1]), new DecompressionStream('deflate-raw'))));
+      return { to: String(to || ''), from: String(from || ''), occ: String(occ || ''), fl: String(fl || 'r'), mu: (trackOf(mu) || {}).id || '',
         lines: (Array.isArray(lines) ? lines : []).map(s => String(s).trim()).filter(Boolean).slice(0, MAX_LINES) };
     } catch (_) { /* fall through to the old link format */ }
   }
   const p = new URLSearchParams(location.search);
   if (!p.has('msg') && !p.has('to')) return null;
   return { to: p.get('to') || '', from: p.get('from') || '', occ: p.get('occ') || '',
-    lines: (p.get('msg') || '').split(/\||\n/).map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl: p.get('fl') || 'r' };
+    lines: (p.get('msg') || '').split(/\||\n/).map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl: p.get('fl') || 'r', mu: (trackOf(p.get('mu')) || {}).id || '' };
 }
 function toParams(cfg) {
   const p = new URLSearchParams();
   if (cfg.to) p.set('to', cfg.to); if (cfg.from) p.set('from', cfg.from); if (cfg.occ) p.set('occ', cfg.occ);
-  p.set('msg', cfg.lines.join('|')); p.set('fl', cfg.fl);
+  p.set('msg', cfg.lines.join('|')); p.set('fl', cfg.fl); if (cfg.mu) p.set('mu', cfg.mu);
   return p.toString();
 }
 function readForm() {
   const fl = [...document.querySelectorAll('#flChips .chip[aria-pressed=true]')].map(b => b.dataset.f).join('') || 'r';
   return { to: $('#fTo').value.trim(), from: $('#fFrom').value.trim(), occ: $('#fOcc').value.trim(),
-    lines: $('#fMsg').value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl };
+    lines: $('#fMsg').value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, MAX_LINES), fl,
+    mu: (document.querySelector('#muChips .chip[aria-pressed=true]') || {dataset: {}}).dataset.m || '' };
 }
 function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2200); }
 async function toLink(cfg) {
   const base = location.href.split(/[?#]/)[0], legacy = base + '?' + toParams(cfg);
   if (!CAN_ZIP) return legacy;
   try {
-    const z = await pipe(new TextEncoder().encode(JSON.stringify([cfg.to, cfg.from, cfg.occ, cfg.lines, cfg.fl])), new CompressionStream('deflate-raw'));
+    const z = await pipe(new TextEncoder().encode(JSON.stringify([cfg.to, cfg.from, cfg.occ, cfg.lines, cfg.fl, cfg.mu])), new CompressionStream('deflate-raw'));
     const packed = base + '#z=' + b64u.enc(z);
     return packed.length < legacy.length ? packed : legacy;
   } catch (_) { return legacy; }
@@ -494,6 +539,13 @@ function initGenerator() {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t.name;
     b.onclick = () => { $('#fOcc').value = t.occ; $('#fMsg').value = t.lines.join('\n'); count(); toast('Template loaded. Now make it yours.'); };
     chips.appendChild(b);
+  });
+  const mu = $('#muChips');
+  [{ id: '', name: 'No music' }, ...TRACKS].forEach((t, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t.name; b.dataset.m = t.id;
+    b.setAttribute('aria-pressed', String(i === (TRACKS.length ? 1 : 0)));
+    b.onclick = () => mu.querySelectorAll('.chip').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    mu.appendChild(b);
   });
   document.querySelectorAll('#flChips .chip').forEach(b => b.onclick = () => {
     const on = b.getAttribute('aria-pressed') === 'true';
@@ -530,7 +582,7 @@ function initGenerator() {
   };
   $('#bShortCopy').onclick = async () => toast((await copyText($('#shortUrl').value)) ? 'Short link copied' : 'Could not copy');
   $('#shortUrl').addEventListener('focus', e => e.target.select());
-  ['#gen', '#tplChips', '#flChips'].forEach(s => $(s).addEventListener(s === '#gen' ? 'input' : 'click', () => { $('#shortBox').hidden = true; })); // message changed: old short link no longer matches
+  ['#gen', '#tplChips', '#flChips', '#muChips'].forEach(s => $(s).addEventListener(s === '#gen' ? 'input' : 'click', () => { $('#shortBox').hidden = true; })); // message changed: old short link no longer matches
   $('#bShare').onclick = async () => {
     const c = readForm(); if (!c.lines.length) return toast('Write at least one line first');
     const e = linkFor(c), url = e.v || await e.p;
@@ -546,12 +598,13 @@ function initGenerator() {
   };
   $('#hostNote').innerHTML = location.protocol === 'file:'
     ? '<b>Sharing:</b> "Copy link" only works once this page is hosted online. Easiest route: press <b>Download as a page</b>, then drag that file onto <b>app.netlify.com/drop</b> to get a link you can send.'
-    : '<b>Tip:</b> "Copy link" packs your words into the address, so anyone with the link sees your garden.';
+    : '<b>Tip:</b> Both link buttons pack your words into the address, so anyone with the link sees your garden.';
 }
 ['wheel', 'touchstart'].forEach(ev => $('#msgwrap').addEventListener(ev, () => { state.glide++; }, { passive: true })); // viewer scrolls by hand: stop the auto-scroll
 $('#msgwrap').addEventListener('scroll', reveal, { passive: true });
 $('#bBack').onclick = backToEditor;
 $('#bReplay').onclick = play;
+$('#bMute').onclick = () => { if (music.want) { music.muted = true; stopMusic(false); muteLabel(); } else { music.muted = false; startMusic(state.cfg.mu); } };
 $('#openBtn').onclick = () => { $('#intro').classList.add('gone'); setTimeout(() => { $('#intro').hidden = true; }, 1200); play(); };
 
 /* ================= boot ================= */
